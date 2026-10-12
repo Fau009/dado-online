@@ -103,6 +103,8 @@ h1 { font-family: var(--display); font-weight: 400; font-size: 1.6rem; margin: 0
   .rolling .hop, .rolling .shadow { animation: none; }
 }
 </style>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
 </head>
 <body>
 
@@ -130,6 +132,7 @@ h1 { font-family: var(--display); font-weight: 400; font-size: 1.6rem; margin: 0
 </div>
 
 <span class="hint">Toque nos dados ou aperte espaço</span>
+<p class="app-links" data-app-links style="margin:-1rem 0 0"></p>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -198,5 +201,6 @@ document.addEventListener('keydown', e => {
 });
 buildDice();
 </script>
+<script src="pwa.js" defer></script>
 </body>
 </html>
