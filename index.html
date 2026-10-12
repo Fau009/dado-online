@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dado Online</title>
+<meta name="description" content="Dado 3D online: role 1 ou 2 dados com animação, veja a soma e o histórico das jogadas.">
+<meta name="theme-color" content="#0a231c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='6' fill='%23f3ede0'/%3E%3Ccircle cx='10' cy='10' r='2.6' fill='%231c1a17'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%231c1a17'/%3E%3Ccircle cx='22' cy='22' r='2.6' fill='%231c1a17'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Mesa de feltro escura; seletor no topo, dados no centro, resultado e histórico abaixo. Visual único (escuro) por escolha. */
+:root {
+  --felt: #12352b;
+  --felt-deep: #0a231c;
+  --felt-line: rgba(201,163,90,.35);
+  --ivory: #f3ede0;
+  --ivory-shade: #d9d0bd;
+  --pip: #1c1a17;
+  --ink: #14110d;
+  --brass: #c9a35a;
+  --muted: #8fb0a3;
+  --display: "DM Serif Display", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: radial-gradient(ellipse at 50% 40%, var(--felt) 0%, var(--felt-deep) 75%) fixed;
+  background-color: var(--felt-deep);
+  color: var(--ivory); font-family: var(--mono); font-size: 14px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1.75rem; padding-inline: 16px; padding-block: 24px;
+  user-select: none; -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; }
+button:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+h1 { font-family: var(--display); font-weight: 400; font-size: 1.6rem; margin: 0; letter-spacing: .01em; }
+
+.seg { display: inline-flex; padding: 4px; gap: 4px; border-radius: 999px; border: 1px solid var(--felt-line); background: rgba(0,0,0,.18); }
+.seg button { appearance: none; border: 0; cursor: pointer; font-size: .8rem; letter-spacing: .08em; padding: .45rem 1rem; border-radius: 999px; color: var(--muted); background: transparent; transition: background .2s, color .2s; }
+.seg button[aria-pressed="true"] { background: var(--brass); color: var(--ink); font-weight: 600; }
+
+.stage {
+  appearance: none; border: 0; background: none; cursor: pointer; padding: 0;
+  min-height: 240px; width: 100%; max-width: 420px; border-radius: 24px;
+  display: flex; justify-content: center; align-items: center; gap: clamp(20px, 8vw, 48px); perspective: 900px;
+}
+.stage:focus-visible { outline-offset: 8px; }
+.die { position: relative; width: 140px; height: 220px; display: grid; place-items: center; }
+.two .die { width: 120px; }
+.shadow { position: absolute; bottom: 30px; width: 110px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.45); filter: blur(8px); }
+.two .shadow { width: 92px; }
+.hop { transform-style: preserve-3d; }
+.cube { --s: 110px; --h: 55px; width: var(--s); height: var(--s); position: relative; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(.2,.75,.25,1); }
+.two .cube { --s: 96px; --h: 48px; }
+.face {
+  position: absolute; inset: 0; border-radius: 16%;
+  background: radial-gradient(circle at 30% 25%, var(--ivory) 0%, var(--ivory) 55%, var(--ivory-shade) 100%);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.08), inset 0 -6px 14px rgba(0,0,0,.12);
+  display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 14%; backface-visibility: hidden;
+}
+.pip { width: 72%; aspect-ratio: 1; border-radius: 50%; place-self: center; background: radial-gradient(circle at 40% 35%, #3a3632, var(--pip) 70%); box-shadow: inset 0 2px 3px rgba(0,0,0,.6); }
+.f1 { transform: rotateY(0deg) translateZ(var(--h)); }
+.f6 { transform: rotateY(180deg) translateZ(var(--h)); }
+.f3 { transform: rotateY(90deg) translateZ(var(--h)); }
+.f4 { transform: rotateY(-90deg) translateZ(var(--h)); }
+.f2 { transform: rotateX(90deg) translateZ(var(--h)); }
+.f5 { transform: rotateX(-90deg) translateZ(var(--h)); }
+.f1 .pip { background: radial-gradient(circle at 40% 35%, #c2453a, #8e2219 70%); width: 90%; }
+
+.rolling .hop { animation: hop 1.2s cubic-bezier(.3,.7,.4,1); }
+.rolling .shadow { animation: shrink 1.2s cubic-bezier(.3,.7,.4,1); }
+.rolling .die:nth-child(2) .hop, .rolling .die:nth-child(2) .shadow { animation-delay: .08s; }
+@keyframes hop { 0%{transform:translateY(0)} 25%{transform:translateY(-70px)} 55%{transform:translateY(0)} 70%{transform:translateY(-16px)} 85%,100%{transform:translateY(0)} }
+@keyframes shrink { 0%{transform:scale(1);opacity:1} 25%{transform:scale(.55);opacity:.4} 55%{transform:scale(1);opacity:1} 70%{transform:scale(.85);opacity:.8} 100%{transform:scale(1);opacity:1} }
+
+.readout { display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+.label { font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+.result { font-family: var(--display); font-size: 4.5rem; line-height: 1; font-variant-numeric: tabular-nums; transition: opacity .25s, transform .25s; }
+.parts { font-size: .9rem; color: var(--muted); min-height: 1.3em; font-variant-numeric: tabular-nums; transition: opacity .25s, transform .25s; }
+.hide { opacity: 0; transform: translateY(6px); }
+
+.log { display: flex; flex-direction: column; align-items: center; gap: .6rem; width: 100%; max-width: 420px; }
+.log-head { display: flex; align-items: center; gap: .75rem; }
+.clear { appearance: none; cursor: pointer; font-size: .75rem; padding: .3rem .7rem; border-radius: 6px; border: 1px solid var(--felt-line); background: transparent; color: var(--brass); transition: background .2s; }
+.clear:hover:not(:disabled) { background: rgba(201,163,90,.14); }
+.clear:disabled { opacity: .35; cursor: default; }
+.history { display: flex; gap: .4rem; flex-wrap: wrap; justify-content: center; min-height: 1.9rem; }
+.chip { font-size: .85rem; font-variant-numeric: tabular-nums; min-width: 1.9rem; height: 1.9rem; padding-inline: .4rem; display: grid; place-items: center; border: 1px solid var(--felt-line); border-radius: 6px; color: var(--brass); }
+.chip:first-child { background: rgba(201,163,90,.14); }
+.empty { font-size: .8rem; color: var(--muted); line-height: 1.9rem; }
+.hint { font-size: .8rem; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cube { transition-duration: .3s; }
+  .rolling .hop, .rolling .shadow { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<h1>Dado Online</h1>
+
+<div class="seg" id="seg" role="group" aria-label="Quantidade de dados">
+  <button data-n="1" aria-pressed="true">1 dado</button>
+  <button data-n="2" aria-pressed="false">2 dados</button>
+</div>
+
+<button class="stage" id="stage" aria-label="Rolar os dados"></button>
+
+<div class="readout" aria-live="polite">
+  <span class="label" id="label">Resultado</span>
+  <span class="result" id="result">1</span>
+  <span class="parts" id="parts"></span>
+</div>
+
+<div class="log">
+  <div class="log-head">
+    <span class="label">Histórico</span>
+    <button class="clear" id="clear" disabled>Zerar histórico</button>
+  </div>
+  <div class="history" id="history"><span class="empty">Nenhuma jogada ainda</span></div>
+</div>
+
+<span class="hint">Toque nos dados ou aperte espaço</span>
+
+<script>
+const $ = id => document.getElementById(id);
+const PIPS = { 1:['2/2'], 2:['1/1','3/3'], 3:['1/1','2/2','3/3'], 4:['1/1','1/3','3/1','3/3'], 5:['1/1','1/3','2/2','3/1','3/3'], 6:['1/1','2/1','3/1','1/3','2/3','3/3'] };
+const FACES = { 1:[0,0], 2:[-90,0], 3:[0,-90], 4:[0,90], 5:[90,0], 6:[0,180] };
+const TILT = [[-18, 24], [-18, -24]];
+const rand6 = () => 1 + Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296 * 6);
+
+let count = 1, dice = [], busy = false, history = [];
+
+function buildDice() {
+  const st = $('stage');
+  st.innerHTML = ''; st.classList.toggle('two', count === 2); dice = [];
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div'); el.className = 'die';
+    const faces = [1,2,3,4,5,6].map(n => `<div class="face f${n}">${PIPS[n].map(a => `<span class="pip" style="grid-area:${a}"></span>`).join('')}</div>`).join('');
+    el.innerHTML = `<div class="shadow"></div><div class="hop"><div class="cube">${faces}</div></div>`;
+    st.appendChild(el);
+    const d = { cube: el.querySelector('.cube'), tx: 0, ty: 0, tilt: TILT[i] };
+    setFace(d, i + 1, false); dice.push(d);
+  }
+  showResult(dice.map((_, i) => i + 1));
+}
+function setFace(d, n, spin) {
+  if (spin) { d.tx += 2 + Math.floor(Math.random() * 2); d.ty += 2 + Math.floor(Math.random() * 2); }
+  const [fx, fy] = FACES[n];
+  d.cube.style.transform = `rotateX(${d.tx*360 + fx + d.tilt[0]}deg) rotateY(${d.ty*360 + fy + d.tilt[1]}deg)`;
+}
+function showResult(v) {
+  $('label').textContent = v.length > 1 ? 'Soma' : 'Resultado';
+  $('result').textContent = v.reduce((a, b) => a + b, 0);
+  $('parts').textContent = v.length > 1 ? v.join(' + ') : '';
+}
+function renderHistory() {
+  $('clear').disabled = !history.length;
+  $('history').innerHTML = history.length
+    ? history.map(h => `<span class="chip" title="${h.parts}">${h.total}</span>`).join('')
+    : '<span class="empty">Nenhuma jogada ainda</span>';
+}
+function roll() {
+  if (busy) return; busy = true;
+  const v = dice.map(() => rand6());
+  dice.forEach((d, i) => setFace(d, v[i], true));
+  $('result').classList.add('hide'); $('parts').classList.add('hide');
+  const st = $('stage'); st.classList.remove('rolling'); void st.offsetWidth; st.classList.add('rolling');
+  const ms = matchMedia('(prefers-reduced-motion: reduce)').matches ? 320 : 1300;
+  setTimeout(() => {
+    showResult(v); $('result').classList.remove('hide'); $('parts').classList.remove('hide');
+    history.unshift({ total: v.reduce((a, b) => a + b, 0), parts: v.join(' + ') });
+    history = history.slice(0, 12);
+    renderHistory(); st.classList.remove('rolling'); busy = false;
+  }, ms);
+}
+function setCount(n) {
+  if (busy || n === count) return;
+  count = n;
+  $('seg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.n === n));
+  history = []; renderHistory(); buildDice();
+}
+
+$('stage').addEventListener('click', roll);
+$('seg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setCount(+b.dataset.n); });
+$('clear').addEventListener('click', () => { history = []; renderHistory(); });
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && document.activeElement === document.body) { e.preventDefault(); roll(); }
+});
+buildDice();
+</script>
+</body>
+</html>
