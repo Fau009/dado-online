@@ -15,4 +15,4 @@ Dado 3D que roda direto no navegador, sem login e sem backend.
 
 ## Estrutura
 
-Um único `index.html` (HTML, CSS e JS puros). Publicado pelo GitHub Pages a partir da branch `main`.
+Um único `index.html` (HTML, CSS e JS puros). Publicado pelo GitHub Pages a partir da branch `gh-pages`, que é um espelho da `main`: depois de cada alteração na `main`, enviar também para a `gh-pages` (`git push origin main:gh-pages`).
